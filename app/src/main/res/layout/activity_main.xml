@@ -7,10 +7,11 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/surface_view_camera_btn"
+        android:id="@+id/start_camera_btn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="SurfaceView Camera"
-        android:textAllCaps="false" />
+        android:text="Start Camera"
+        android:textAllCaps="false"
+        android:onClick="startCameraActivity"/>
 
 </LinearLayout>
