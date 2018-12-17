@@ -1,11 +1,12 @@
 package com.afei.camerademo;
 
-
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import com.afei.camerademo.camera.CameraSurfaceView;
 
 public class CameraFragment extends Fragment {
 
@@ -35,7 +36,7 @@ public class CameraFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        CameraTextureView cameraView = new CameraTextureView(getActivity());
+        CameraSurfaceView cameraView = new CameraSurfaceView(getActivity());
         return cameraView;
     }
 
