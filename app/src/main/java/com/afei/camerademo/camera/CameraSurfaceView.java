@@ -6,8 +6,7 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-
-import java.io.IOException;
+import android.view.View;
 
 public class CameraSurfaceView extends SurfaceView {
 
@@ -19,11 +18,6 @@ public class CameraSurfaceView extends SurfaceView {
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
             mCameraProxy.openCamera();
-            try {
-                mCameraProxy.getCamera().setPreviewDisplay(getHolder());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
 
         @Override
@@ -35,7 +29,7 @@ public class CameraSurfaceView extends SurfaceView {
             } else {
                 setAspectRatio(previewHeight, previewWidth);
             }
-            mCameraProxy.startPreview();
+            mCameraProxy.startPreview(holder);
         }
 
         @Override
@@ -58,8 +52,20 @@ public class CameraSurfaceView extends SurfaceView {
 
     public CameraSurfaceView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        init(context);
+    }
+
+    private void init(Context context) {
         getHolder().addCallback(mSurfaceHolderCallback);
         mCameraProxy = new CameraProxy((Activity) context);
+        setOnLongClickListener(new OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                mCameraProxy.switchCamera();
+                mCameraProxy.startPreview(getHolder());
+                return true;
+            }
+        });
     }
 
     public void setAspectRatio(int width, int height) {
@@ -69,6 +75,10 @@ public class CameraSurfaceView extends SurfaceView {
         mRatioWidth = width;
         mRatioHeight = height;
         requestLayout();
+    }
+
+    public CameraProxy getCameraProxy() {
+        return mCameraProxy;
     }
 
     @Override
@@ -98,4 +108,5 @@ public class CameraSurfaceView extends SurfaceView {
         }
         return super.onTouchEvent(event);
     }
+
 }

@@ -10,7 +10,9 @@ import android.hardware.Camera.PreviewCallback;
 import android.hardware.Camera.Size;
 import android.util.Log;
 import android.view.Surface;
+import android.view.SurfaceHolder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,12 +20,13 @@ import java.util.List;
 public class CameraProxy implements Camera.AutoFocusCallback{
 
     private static final String TAG = "CameraProxy";
+
     private Activity mActivity;
-    private int mCameraId = Camera.CameraInfo.CAMERA_FACING_FRONT;
     private Camera mCamera;
     private CameraInfo mCameraInfo = new CameraInfo();
-    private int mPreviewWidth = 640; // default 640
-    private int mPreviewHeight = 480; // default 480
+    private int mCameraId = CameraInfo.CAMERA_FACING_FRONT;
+    private int mPreviewWidth = 1440; // default 1440
+    private int mPreviewHeight = 1080; // default 1080
     private float mPreviewScale = mPreviewHeight * 1f / mPreviewWidth;
     private PreviewCallback mPreviewCallback; // 相机预览的数据回调
 
@@ -51,9 +54,14 @@ public class CameraProxy implements Camera.AutoFocusCallback{
         }
     }
 
-    public void startPreview() {
+    public void startPreview(SurfaceHolder holder) {
         if (mCamera != null) {
             Log.v(TAG, "startPreview");
+            try {
+                mCamera.setPreviewDisplay(holder);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             mCamera.startPreview();
         }
     }
@@ -67,8 +75,8 @@ public class CameraProxy implements Camera.AutoFocusCallback{
 
     private void initConfig() {
         Log.v(TAG, "initConfig");
-        Parameters parameters = mCamera.getParameters();
         try {
+            Parameters parameters = mCamera.getParameters();
             // 如果摄像头不支持这些参数都会出错的，所以设置的时候一定要判断是否支持
             List<String> supportedFlashModes = parameters.getSupportedFlashModes();
             if (supportedFlashModes != null && supportedFlashModes.contains(Parameters.FLASH_MODE_OFF)) {
@@ -86,10 +94,10 @@ public class CameraProxy implements Camera.AutoFocusCallback{
             mPreviewHeight = suitableSize.height;
             parameters.setPreviewSize(mPreviewWidth, mPreviewHeight); // 设置预览图片大小
             Log.d(TAG, "mPreviewWidth: " + mPreviewWidth + ", mPreviewHeight: " + mPreviewHeight);
+            mCamera.setParameters(parameters); // 将设置好的parameters添加到相机里
         } catch (Exception e) {
             e.printStackTrace();
         }
-        mCamera.setParameters(parameters); // 将设置好的parameters添加到相机里
     }
 
     private Size getSuitableSize() {
@@ -101,7 +109,6 @@ public class CameraProxy implements Camera.AutoFocusCallback{
             Size previewSize = previewSizes.get(i);
             Log.v(TAG, "SupportedPreviewSize, width: " + previewSize.width + ", height: " + previewSize.height);
             // 找到一个与设置的分辨率差值最小的相机支持的分辨率大小
-            Log.d(TAG, "mPreviewScale: " + mPreviewScale);
             if (previewSize.width * mPreviewScale == previewSize.height) {
                 int delta = Math.abs(mPreviewWidth - previewSize.width);
                 if (delta == 0) {
@@ -155,6 +162,13 @@ public class CameraProxy implements Camera.AutoFocusCallback{
         mCamera.setPreviewCallbackWithBuffer(mPreviewCallback); // 设置预览的回调
     }
 
+    public void switchCamera() {
+        mCameraId ^= 1; // 先改变摄像头朝向
+        releaseCamera();
+        openCamera();
+
+    }
+
     public void focusOnPoint(int x, int y, int width, int height) {
         Log.v(TAG, "touch point (" + x + ", " + y + ")");
         if (mCamera == null) {
@@ -180,7 +194,7 @@ public class CameraProxy implements Camera.AutoFocusCallback{
             right = right > 1000 ? 1000 : right;
             bottom = bottom > 1000 ? 1000 : bottom;
             Log.d(TAG, "focus area (" + left + ", " + top + ", " + right + ", " + bottom + ")");
-            ArrayList<Camera.Area> areas = new ArrayList<Camera.Area>();
+            ArrayList<Camera.Area> areas = new ArrayList<>();
             areas.add(new Camera.Area(new Rect(left, top, right, bottom), 600));
             parameters.setFocusAreas(areas);
         }
@@ -207,6 +221,6 @@ public class CameraProxy implements Camera.AutoFocusCallback{
 
     @Override
     public void onAutoFocus(boolean success, Camera camera) {
-
+        Log.d(TAG, "onAutoFocus: " + success);
     }
 }
