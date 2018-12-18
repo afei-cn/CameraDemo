@@ -11,22 +11,43 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.util.List;
+public class CameraActivity extends AppCompatActivity implements View.OnClickListener {
 
-public class CameraActivity extends AppCompatActivity {
+    private static final String TAG = "CameraActivity";
+    public static final String ARG_TYPE = "type";
+
+    private ImageView mCloseIv;
+    private ImageView mSwitchCameraIv;
+    private ImageView mSettingsIv;
+    private ImageView mTakePictureIv;
+
+    private int mType;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Intent intent = getIntent();
+        mType = intent.getIntExtra(ARG_TYPE, CameraType.TYPE_SURFACEVIEW_CAMERA);
+        Log.d(TAG, "onCreate: mType: " + mType);
         setContentView(R.layout.activity_camera);
+        initView();
         checkPermission();
     }
 
-    private void attachFragment() {
-        getSupportFragmentManager().beginTransaction().replace(R.id.container, CameraFragment
-                .newInstance(CameraFragment.TYPE_TEXTURE_VIEW_CAMERA)).commit();
+    private void initView() {
+        mCloseIv = findViewById(R.id.toolbar_close_iv);
+        mSwitchCameraIv = findViewById(R.id.toolbar_switch_iv);
+        mSettingsIv = findViewById(R.id.toolbar_settings_iv);
+        mTakePictureIv = findViewById(R.id.take_picture_iv);
+        mCloseIv.setOnClickListener(this);
+        mSwitchCameraIv.setOnClickListener(this);
+        mSettingsIv.setOnClickListener(this);
+        mTakePictureIv.setOnClickListener(this);
     }
 
     private void checkPermission() {
@@ -67,4 +88,23 @@ public class CameraActivity extends AppCompatActivity {
         attachFragment();
     }
 
+    private void attachFragment() {
+        getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, CameraFragment
+                .newInstance(mType)).commit();
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.toolbar_close_iv:
+                finish();
+                break;
+            case R.id.toolbar_switch_iv:
+                break;
+            case R.id.toolbar_settings_iv:
+                break;
+            case R.id.take_picture_iv:
+                break;
+        }
+    }
 }

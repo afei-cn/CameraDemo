@@ -1,17 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    tools:context=".MainActivity">
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context=".MainActivity">
+
+    <Toolbar
+        android:layout_width="match_parent"
+        android:layout_height="?android:actionBarSize"
+        android:background="@color/colorPrimary"
+        android:title="@string/app_name"
+        android:titleTextColor="@android:color/white">
+    </Toolbar>
 
     <Button
-        android:id="@+id/start_camera_btn"
+        android:id="@+id/camera_btn1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start Camera"
-        android:textAllCaps="false"
-        android:onClick="startCameraActivity"/>
+        android:onClick="startCameraActivity"
+        android:text="SurfaceView + Camera"
+        android:textAllCaps="false"/>
+
+    <Button
+        android:id="@+id/camera_btn2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startCameraActivity"
+        android:text="TextureView + Camera"
+        android:textAllCaps="false"/>
+
+    <Button
+        android:id="@+id/camera_btn3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startCameraActivity"
+        android:text="GLSurfaceView + Camera"
+        android:textAllCaps="false"/>
 
 </LinearLayout>

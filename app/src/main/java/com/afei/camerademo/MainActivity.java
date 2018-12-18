@@ -14,6 +14,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startCameraActivity(View view) {
-        startActivity(new Intent(this, CameraActivity.class));
+        Intent intent = new Intent(this, CameraActivity.class);
+        switch (view.getId()) {
+            case R.id.camera_btn1:
+                intent.putExtra(CameraActivity.ARG_TYPE, CameraType.TYPE_SURFACEVIEW_CAMERA);
+                break;
+            case R.id.camera_btn2:
+                intent.putExtra(CameraActivity.ARG_TYPE, CameraType.TYPE_TEXTUREVIEW_CAMERA);
+                break;
+            case R.id.camera_btn3:
+                intent.putExtra(CameraActivity.ARG_TYPE, CameraType.TYPE_GLSURFACEVIEW_CAMERA);
+                break;
+        }
+        startActivity(intent);
     }
 }

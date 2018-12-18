@@ -3,6 +3,7 @@ package com.afei.camerademo.camera;
 import android.app.Activity;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
+import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.Parameters;
@@ -17,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("deprecation")
-public class CameraProxy implements Camera.AutoFocusCallback{
+public class CameraProxy implements Camera.AutoFocusCallback {
 
     private static final String TAG = "CameraProxy";
 
@@ -59,6 +60,18 @@ public class CameraProxy implements Camera.AutoFocusCallback{
             Log.v(TAG, "startPreview");
             try {
                 mCamera.setPreviewDisplay(holder);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mCamera.startPreview();
+        }
+    }
+
+    public void startPreview(SurfaceTexture surface) {
+        if (mCamera != null) {
+            Log.v(TAG, "startPreview");
+            try {
+                mCamera.setPreviewTexture(surface);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -166,7 +179,6 @@ public class CameraProxy implements Camera.AutoFocusCallback{
         mCameraId ^= 1; // 先改变摄像头朝向
         releaseCamera();
         openCamera();
-
     }
 
     public void focusOnPoint(int x, int y, int width, int height) {
