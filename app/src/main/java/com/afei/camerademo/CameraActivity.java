@@ -21,6 +21,7 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
     private static final String TAG = "CameraActivity";
     public static final String ARG_TYPE = "type";
 
+    private CameraFragment mCameraFragment;
     private ImageView mCloseIv;
     private ImageView mSwitchCameraIv;
     private ImageView mSettingsIv;
@@ -89,8 +90,8 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
     }
 
     private void attachFragment() {
-        getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, CameraFragment
-                .newInstance(mType)).commit();
+        mCameraFragment = CameraFragment.newInstance(mType);
+        getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, mCameraFragment).commit();
     }
 
     @Override
@@ -100,6 +101,7 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
                 finish();
                 break;
             case R.id.toolbar_switch_iv:
+                mCameraFragment.switchCamera();
                 break;
             case R.id.toolbar_settings_iv:
                 break;

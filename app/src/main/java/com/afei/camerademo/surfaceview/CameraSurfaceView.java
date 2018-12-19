@@ -1,48 +1,50 @@
-package com.afei.camerademo.camera;
+package com.afei.camerademo.surfaceview;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.SurfaceTexture;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.TextureView;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
-public class CameraTextureView extends TextureView {
+import com.afei.camerademo.camera.CameraProxy;
+
+public class CameraSurfaceView extends SurfaceView {
 
     private CameraProxy mCameraProxy;
     private int mRatioWidth = 0;
     private int mRatioHeight = 0;
 
-    public CameraTextureView(Context context) {
+    public CameraSurfaceView(Context context) {
         this(context, null);
     }
 
-    public CameraTextureView(Context context, AttributeSet attrs) {
+    public CameraSurfaceView(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public CameraTextureView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public CameraSurfaceView(Context context, AttributeSet attrs, int defStyleAttr) {
         this(context, attrs, defStyleAttr, 0);
     }
 
-    public CameraTextureView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public CameraSurfaceView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
         init(context);
     }
 
     private void init(Context context) {
-        this.setSurfaceTextureListener(mSurfaceTextureListener);
+        getHolder().addCallback(mSurfaceHolderCallback);
         mCameraProxy = new CameraProxy((Activity) context);
     }
 
-    private SurfaceTextureListener mSurfaceTextureListener = new SurfaceTextureListener() {
+    private final SurfaceHolder.Callback mSurfaceHolderCallback = new SurfaceHolder.Callback() {
         @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        public void surfaceCreated(SurfaceHolder holder) {
             mCameraProxy.openCamera();
         }
 
         @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             int previewWidth = mCameraProxy.getPreviewWidth();
             int previewHeight = mCameraProxy.getPreviewHeight();
             if (width > height) {
@@ -50,16 +52,11 @@ public class CameraTextureView extends TextureView {
             } else {
                 setAspectRatio(previewHeight, previewWidth);
             }
-            mCameraProxy.startPreview(surface);
+            mCameraProxy.startPreview(holder);
         }
 
         @Override
-        public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            return false;
-        }
-
-        @Override
-        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+        public void surfaceDestroyed(SurfaceHolder holder) {
             mCameraProxy.releaseCamera();
         }
     };
