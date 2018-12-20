@@ -1,5 +1,6 @@
 package com.afei.camerademo;
 
+import android.hardware.Camera;
 import android.support.v4.app.Fragment;
 
 import com.afei.camerademo.camera.CameraProxy;
@@ -29,5 +30,15 @@ public abstract class CameraFragment extends Fragment {
         return cameraFragment;
     }
 
-    public abstract void switchCamera();
+
+    protected abstract void startPreview();
+
+    public void switchCamera() {
+        mCameraProxy.switchCamera();
+        startPreview();
+    }
+
+    public void takePicture(Camera.PictureCallback pictureCallback) {
+        mCameraProxy.takePicture(pictureCallback);
+    }
 }

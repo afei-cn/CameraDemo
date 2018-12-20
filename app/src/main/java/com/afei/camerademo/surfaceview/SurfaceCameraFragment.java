@@ -24,8 +24,7 @@ public class SurfaceCameraFragment extends CameraFragment {
     }
 
     @Override
-    public void switchCamera() {
-        mCameraProxy.switchCamera();
+    protected void startPreview() {
         mCameraProxy.startPreview(mCameraView.getHolder());
     }
 }

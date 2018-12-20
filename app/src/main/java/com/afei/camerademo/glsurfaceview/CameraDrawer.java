@@ -73,6 +73,7 @@ public class CameraDrawer {
 
     public void draw(int texture) {
         GLES20.glUseProgram(mProgram);
+        GLES20.glEnable(GLES20.GL_CULL_FACE); // 启动剔除
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture);
         GLES20.glEnableVertexAttribArray(mPositionHandle);

@@ -73,4 +73,12 @@
         android:layout_marginBottom="20dp"
         android:src="@drawable/click_button_selector"/>
 
+    <ImageView
+        android:id="@+id/picture_iv"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_margin="20dp"/>
+
 </RelativeLayout>

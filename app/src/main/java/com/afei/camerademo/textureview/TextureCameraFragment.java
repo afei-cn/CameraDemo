@@ -25,8 +25,7 @@ public class TextureCameraFragment extends CameraFragment {
     }
 
     @Override
-    public void switchCamera() {
-        mCameraProxy.switchCamera();
+    protected void startPreview() {
         mCameraProxy.startPreview(mCameraView.getSurfaceTexture());
     }
 

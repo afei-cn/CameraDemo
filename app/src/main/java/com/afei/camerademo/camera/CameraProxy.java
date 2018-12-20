@@ -102,24 +102,25 @@ public class CameraProxy implements Camera.AutoFocusCallback {
             parameters.setPreviewFormat(ImageFormat.NV21); // 设置预览图片格式
             parameters.setPictureFormat(ImageFormat.JPEG); // 设置拍照图片格式
             parameters.setExposureCompensation(0); // 设置曝光强度
-            Size suitableSize = getSuitableSize();
-            mPreviewWidth = suitableSize.width;
-            mPreviewHeight = suitableSize.height;
+            Size previewSize = getSuitableSize(parameters.getSupportedPreviewSizes());
+            mPreviewWidth = previewSize.width;
+            mPreviewHeight = previewSize.height;
             parameters.setPreviewSize(mPreviewWidth, mPreviewHeight); // 设置预览图片大小
-            Log.d(TAG, "mPreviewWidth: " + mPreviewWidth + ", mPreviewHeight: " + mPreviewHeight);
+            Log.d(TAG, "previewWidth: " + mPreviewWidth + ", previewHeight: " + mPreviewHeight);
+            Size pictureSize = getSuitableSize(parameters.getSupportedPictureSizes());
+            parameters.setPictureSize(pictureSize.width, pictureSize.height);
+            Log.d(TAG, "pictureWidth: " + pictureSize.width + ", pictureHeight: " + pictureSize.height);
             mCamera.setParameters(parameters); // 将设置好的parameters添加到相机里
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private Size getSuitableSize() {
-        Parameters parameters = mCamera.getParameters();
-        List<Size> previewSizes = parameters.getSupportedPreviewSizes(); // 获取支持的预览尺寸大小
+    private Size getSuitableSize(List<Size> sizes) {
         int minDelta = Integer.MAX_VALUE; // 最小的差值，初始值应该设置大点保证之后的计算中会被重置
         int index = 0; // 最小的差值对应的索引坐标
-        for (int i = 0; i < previewSizes.size(); i++) {
-            Size previewSize = previewSizes.get(i);
+        for (int i = 0; i < sizes.size(); i++) {
+            Size previewSize = sizes.get(i);
             Log.v(TAG, "SupportedPreviewSize, width: " + previewSize.width + ", height: " + previewSize.height);
             // 找到一个与设置的分辨率差值最小的相机支持的分辨率大小
             if (previewSize.width * mPreviewScale == previewSize.height) {
@@ -133,7 +134,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
                 }
             }
         }
-        return previewSizes.get(index); // 默认返回与设置的分辨率最接近的预览尺寸
+        return sizes.get(index); // 默认返回与设置的分辨率最接近的预览尺寸
     }
 
     /**
@@ -173,6 +174,10 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         }
         mCamera.addCallbackBuffer(mPreviewBuffer);
         mCamera.setPreviewCallbackWithBuffer(mPreviewCallback); // 设置预览的回调
+    }
+
+    public void takePicture(Camera.PictureCallback pictureCallback) {
+        mCamera.takePicture(null, null, pictureCallback);
     }
 
     public void switchCamera() {
