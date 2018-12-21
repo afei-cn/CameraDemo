@@ -3,6 +3,7 @@ package com.afei.camerademo.surfaceview;
 import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -14,6 +15,7 @@ public class CameraSurfaceView extends SurfaceView {
     private CameraProxy mCameraProxy;
     private int mRatioWidth = 0;
     private int mRatioHeight = 0;
+    private float mOldDistance;
 
     public CameraSurfaceView(Context context) {
         this(context, null);
@@ -92,15 +94,34 @@ public class CameraSurfaceView extends SurfaceView {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                // 点击聚焦
-                mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+        if (event.getPointerCount() == 1) {
+            // 点击聚焦
+            mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+            return true;
+        }
+        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_POINTER_DOWN:
+                mOldDistance = getFingerSpacing(event);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float newDistance = getFingerSpacing(event);
+                if (newDistance > mOldDistance) {
+                    mCameraProxy.handleZoom(true);
+                } else if (newDistance < mOldDistance) {
+                    mCameraProxy.handleZoom(false);
+                }
+                mOldDistance = newDistance;
                 break;
             default:
                 break;
         }
         return super.onTouchEvent(event);
+    }
+
+    private static float getFingerSpacing(MotionEvent event) {
+        float x = event.getX(0) - event.getX(1);
+        float y = event.getY(0) - event.getY(1);
+        return (float) Math.sqrt(x * x + y * y);
     }
 
 }

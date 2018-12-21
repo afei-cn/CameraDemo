@@ -10,6 +10,7 @@ import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PreviewCallback;
 import android.hardware.Camera.Size;
 import android.util.Log;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
@@ -24,17 +25,27 @@ public class CameraProxy implements Camera.AutoFocusCallback {
 
     private Activity mActivity;
     private Camera mCamera;
+    private Parameters mParameters;
     private CameraInfo mCameraInfo = new CameraInfo();
     private int mCameraId = CameraInfo.CAMERA_FACING_BACK;
     private int mPreviewWidth = 1440; // default 1440
     private int mPreviewHeight = 1080; // default 1080
     private float mPreviewScale = mPreviewHeight * 1f / mPreviewWidth;
     private PreviewCallback mPreviewCallback; // 相机预览的数据回调
+    private OrientationEventListener mOrientationEventListener;
+    private int mLatestRotation = -1;
 
     public byte[] mPreviewBuffer;
 
     public CameraProxy(Activity activity) {
         mActivity = activity;
+        mOrientationEventListener = new OrientationEventListener(mActivity) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                Log.d(TAG, "onOrientationChanged: orientation: " + orientation);
+                setPictureRotate(orientation);
+            }
+        };
     }
 
     public void openCamera() {
@@ -43,6 +54,8 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         Camera.getCameraInfo(mCameraId, mCameraInfo);
         initConfig();
         setDisplayOrientation();
+        Log.d(TAG, "openCamera enable mOrientationEventListener");
+        mOrientationEventListener.enable();
     }
 
     public void releaseCamera() {
@@ -53,6 +66,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
             mCamera.release();
             mCamera = null;
         }
+        mOrientationEventListener.disable();
     }
 
     public void startPreview(SurfaceHolder holder) {
@@ -89,28 +103,28 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     private void initConfig() {
         Log.v(TAG, "initConfig");
         try {
-            Parameters parameters = mCamera.getParameters();
+            mParameters = mCamera.getParameters();
             // 如果摄像头不支持这些参数都会出错的，所以设置的时候一定要判断是否支持
-            List<String> supportedFlashModes = parameters.getSupportedFlashModes();
+            List<String> supportedFlashModes = mParameters.getSupportedFlashModes();
             if (supportedFlashModes != null && supportedFlashModes.contains(Parameters.FLASH_MODE_OFF)) {
-                parameters.setFlashMode(Parameters.FLASH_MODE_OFF); // 设置闪光模式
+                mParameters.setFlashMode(Parameters.FLASH_MODE_OFF); // 设置闪光模式
             }
-            List<String> supportedFocusModes = parameters.getSupportedFocusModes();
+            List<String> supportedFocusModes = mParameters.getSupportedFocusModes();
             if (supportedFocusModes != null && supportedFocusModes.contains(Parameters.FOCUS_MODE_AUTO)) {
-                parameters.setFocusMode(Parameters.FOCUS_MODE_AUTO); // 设置聚焦模式
+                mParameters.setFocusMode(Parameters.FOCUS_MODE_AUTO); // 设置聚焦模式
             }
-            parameters.setPreviewFormat(ImageFormat.NV21); // 设置预览图片格式
-            parameters.setPictureFormat(ImageFormat.JPEG); // 设置拍照图片格式
-            parameters.setExposureCompensation(0); // 设置曝光强度
-            Size previewSize = getSuitableSize(parameters.getSupportedPreviewSizes());
+            mParameters.setPreviewFormat(ImageFormat.NV21); // 设置预览图片格式
+            mParameters.setPictureFormat(ImageFormat.JPEG); // 设置拍照图片格式
+            mParameters.setExposureCompensation(0); // 设置曝光强度
+            Size previewSize = getSuitableSize(mParameters.getSupportedPreviewSizes());
             mPreviewWidth = previewSize.width;
             mPreviewHeight = previewSize.height;
-            parameters.setPreviewSize(mPreviewWidth, mPreviewHeight); // 设置预览图片大小
+            mParameters.setPreviewSize(mPreviewWidth, mPreviewHeight); // 设置预览图片大小
             Log.d(TAG, "previewWidth: " + mPreviewWidth + ", previewHeight: " + mPreviewHeight);
-            Size pictureSize = getSuitableSize(parameters.getSupportedPictureSizes());
-            parameters.setPictureSize(pictureSize.width, pictureSize.height);
+            Size pictureSize = getSuitableSize(mParameters.getSupportedPictureSizes());
+            mParameters.setPictureSize(pictureSize.width, pictureSize.height);
             Log.d(TAG, "pictureWidth: " + pictureSize.width + ", pictureHeight: " + pictureSize.height);
-            mCamera.setParameters(parameters); // 将设置好的parameters添加到相机里
+            mCamera.setParameters(mParameters); // 将设置好的parameters添加到相机里
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -165,6 +179,23 @@ public class CameraProxy implements Camera.AutoFocusCallback {
             result = (mCameraInfo.orientation - degrees + 360) % 360;
         }
         mCamera.setDisplayOrientation(result);
+    }
+
+    private void setPictureRotate(int orientation) {
+        if (mParameters == null) return;
+        if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return;
+        orientation = (orientation + 45) / 90 * 90;
+        int rotation = 0;
+        if (mCameraInfo.facing == CameraInfo.CAMERA_FACING_FRONT) {
+            rotation = (mCameraInfo.orientation - orientation + 360) % 360;
+        } else {  // back-facing camera
+            rotation = (mCameraInfo.orientation + orientation) % 360;
+        }
+        if (mLatestRotation == rotation) return;
+        Log.d(TAG, "picture rotation: " + rotation);
+        mParameters.setRotation(rotation);
+        mCamera.setParameters(mParameters);
+        mLatestRotation = rotation;
     }
 
     public void setPreviewCallback(PreviewCallback previewCallback) {
@@ -224,6 +255,23 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         }
     }
 
+    public void handleZoom(boolean isZoomIn) {
+        if (mParameters.isZoomSupported()) {
+            int maxZoom = mParameters.getMaxZoom();
+            int zoom = mParameters.getZoom();
+            if (isZoomIn && zoom < maxZoom) {
+                zoom++;
+            } else if (zoom > 0) {
+                zoom--;
+            }
+            Log.d(TAG, "handleZoom: zoom: " + zoom);
+            mParameters.setZoom(zoom);
+            mCamera.setParameters(mParameters);
+        } else {
+            Log.i(TAG, "zoom not supported");
+        }
+    }
+
     public Camera getCamera() {
         return mCamera;
     }
@@ -240,4 +288,5 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     public void onAutoFocus(boolean success, Camera camera) {
         Log.d(TAG, "onAutoFocus: " + success);
     }
+
 }
