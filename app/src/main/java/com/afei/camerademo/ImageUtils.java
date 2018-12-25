@@ -5,6 +5,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -27,18 +28,71 @@ public class ImageUtils {
     };
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss");
 
+    public static Bitmap rotateBitmap(Bitmap source, int degree, boolean flipHorizontal, boolean recycle) {
+        if (degree == 0) {
+            return source;
+        }
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degree);
+        if (flipHorizontal) {
+            matrix.postScale(-1, 1);
+        }
+        Log.d(TAG, "source width: " + source.getWidth() + ", height: " + source.getHeight());
+        Log.d(TAG, "rotateBitmap: degree: " + degree);
+        Bitmap rotateBitmap = Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, false);
+        Log.d(TAG, "rotate width: " + rotateBitmap.getWidth() + ", height: " + rotateBitmap.getHeight());
+        if (recycle) {
+            source.recycle();
+        }
+        return rotateBitmap;
+    }
+
     public static void saveImage(byte[] jpeg) {
         String fileName = DATE_FORMAT.format(new Date(System.currentTimeMillis())) + ".jpg";
         File outFile = new File(GALLERY_PATH, fileName);
         Log.d(TAG, "saveImage. filepath: " + outFile.getAbsolutePath());
+        FileOutputStream os = null;
         try {
-            FileOutputStream os = new FileOutputStream(outFile);
+            os = new FileOutputStream(outFile);
             os.write(jpeg);
             os.flush();
             os.close();
             insertToDB(outFile.getAbsolutePath());
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (os != null) {
+                try {
+                    os.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public static void saveBitmap(Bitmap bitmap) {
+        String fileName = DATE_FORMAT.format(new Date(System.currentTimeMillis())) + ".jpg";
+        File outFile = new File(GALLERY_PATH, fileName);
+        Log.d(TAG, "saveImage. filepath: " + outFile.getAbsolutePath());
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(outFile);
+            boolean success = bitmap.compress(Bitmap.CompressFormat.JPEG, 100, os);
+            Log.d(TAG, "saveBitmap: " + success);
+            if (success) {
+                insertToDB(outFile.getAbsolutePath());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (os != null) {
+                try {
+                    os.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 

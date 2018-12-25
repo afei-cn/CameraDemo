@@ -3,6 +3,8 @@ package com.afei.camerademo;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -139,7 +141,18 @@ public class CameraActivity extends AppCompatActivity implements View.OnClickLis
 
         @Override
         protected Void doInBackground(byte[]... bytes) {
-            ImageUtils.saveImage(bytes[0]);
+            long time = System.currentTimeMillis();
+            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes[0], 0, bytes[0].length);
+            Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
+            int rotation = mCameraFragment.getCameraProxy().getLatestRotation();
+            Log.d(TAG, "rotation: " + rotation);
+            time = System.currentTimeMillis();
+            Bitmap rotateBitmap = ImageUtils.rotateBitmap(bitmap, rotation, mCameraFragment.getCameraProxy()
+                    .isFrontCamera(), true);
+            Log.d(TAG, "rotateBitmap time: " + (System.currentTimeMillis() - time));
+            time = System.currentTimeMillis();
+            ImageUtils.saveBitmap(rotateBitmap);
+            Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
             return null;
         }
 

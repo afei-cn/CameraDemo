@@ -30,8 +30,11 @@ public abstract class CameraFragment extends Fragment {
         return cameraFragment;
     }
 
+    public CameraProxy getCameraProxy() {
+        return mCameraProxy;
+    }
 
-    protected abstract void startPreview();
+    public abstract void startPreview();
 
     public void switchCamera() {
         mCameraProxy.switchCamera();

@@ -33,7 +33,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     private float mPreviewScale = mPreviewHeight * 1f / mPreviewWidth;
     private PreviewCallback mPreviewCallback; // 相机预览的数据回调
     private OrientationEventListener mOrientationEventListener;
-    private int mLatestRotation = -1;
+    private int mLatestRotation = 0;
 
     public byte[] mPreviewBuffer;
 
@@ -98,6 +98,10 @@ public class CameraProxy implements Camera.AutoFocusCallback {
             Log.v(TAG, "stopPreview");
             mCamera.stopPreview();
         }
+    }
+
+    public boolean isFrontCamera() {
+        return mCameraInfo.facing == Camera.CameraInfo.CAMERA_FACING_FRONT;
     }
 
     private void initConfig() {
@@ -182,7 +186,6 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     }
 
     private void setPictureRotate(int orientation) {
-        if (mParameters == null) return;
         if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return;
         orientation = (orientation + 45) / 90 * 90;
         int rotation = 0;
@@ -191,11 +194,12 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         } else {  // back-facing camera
             rotation = (mCameraInfo.orientation + orientation) % 360;
         }
-        if (mLatestRotation == rotation) return;
         Log.d(TAG, "picture rotation: " + rotation);
-        mParameters.setRotation(rotation);
-        mCamera.setParameters(mParameters);
         mLatestRotation = rotation;
+    }
+
+    public int getLatestRotation() {
+        return mLatestRotation;
     }
 
     public void setPreviewCallback(PreviewCallback previewCallback) {
