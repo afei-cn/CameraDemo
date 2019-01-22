@@ -41,12 +41,12 @@
         </LinearLayout>
     </android.support.v7.widget.Toolbar>
 
-    <FrameLayout
-        android:id="@+id/fragment_container"
+    <com.afei.camerademo.textureview.CameraTextureView
+        android:id="@+id/camera_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@+id/toolbar">
-    </FrameLayout>
+    </com.afei.camerademo.textureview.CameraTextureView>
 
     <ImageView
         android:id="@+id/take_picture_iv"

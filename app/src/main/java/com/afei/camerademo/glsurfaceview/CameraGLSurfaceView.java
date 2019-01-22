@@ -22,6 +22,7 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
     private CameraDrawer mDrawer;
     private int mRatioWidth = 0;
     private int mRatioHeight = 0;
+    private float mOldDistance;
     private int mTextureId = -1;
 
     public CameraGLSurfaceView(Context context) {
@@ -35,7 +36,7 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
 
     private void init(Context context) {
         mCameraProxy = new CameraProxy((Activity) context);
-        setEGLContextClientVersion(3);
+        setEGLContextClientVersion(2);
         setRenderer(this);
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
@@ -69,24 +70,12 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
         GLES20.glClearColor(0, 0, 0, 0);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
         mSurfaceTexture.updateTexImage();
-        mDrawer.draw(mTextureId);
+        mDrawer.draw(mTextureId, mCameraProxy.isFrontCamera());
     }
 
     @Override
     public void onFrameAvailable(SurfaceTexture surfaceTexture) {
         requestRender();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        mCameraProxy.stopPreview();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        bringToFront();
     }
 
     public void setAspectRatio(int width, int height) {
@@ -107,6 +96,10 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
         return mCameraProxy;
     }
 
+    public SurfaceTexture getSurfaceTexture() {
+        return mSurfaceTexture;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
@@ -125,10 +118,23 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                // 点击聚焦
-                mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+        if (event.getPointerCount() == 1) {
+            // 点击聚焦
+            mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+            return true;
+        }
+        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_POINTER_DOWN:
+                mOldDistance = getFingerSpacing(event);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float newDistance = getFingerSpacing(event);
+                if (newDistance > mOldDistance) {
+                    mCameraProxy.handleZoom(true);
+                } else if (newDistance < mOldDistance) {
+                    mCameraProxy.handleZoom(false);
+                }
+                mOldDistance = newDistance;
                 break;
             default:
                 break;
@@ -136,7 +142,10 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
         return super.onTouchEvent(event);
     }
 
-    public SurfaceTexture getSurfaceTexture() {
-        return mSurfaceTexture;
+    private static float getFingerSpacing(MotionEvent event) {
+        float x = event.getX(0) - event.getX(1);
+        float y = event.getY(0) - event.getY(1);
+        return (float) Math.sqrt(x * x + y * y);
     }
+
 }

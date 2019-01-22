@@ -42,7 +42,6 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         mOrientationEventListener = new OrientationEventListener(mActivity) {
             @Override
             public void onOrientationChanged(int orientation) {
-                Log.d(TAG, "onOrientationChanged: orientation: " + orientation);
                 setPictureRotate(orientation);
             }
         };
@@ -138,13 +137,13 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         int minDelta = Integer.MAX_VALUE; // 最小的差值，初始值应该设置大点保证之后的计算中会被重置
         int index = 0; // 最小的差值对应的索引坐标
         for (int i = 0; i < sizes.size(); i++) {
-            Size previewSize = sizes.get(i);
-            Log.v(TAG, "SupportedPreviewSize, width: " + previewSize.width + ", height: " + previewSize.height);
-            // 找到一个与设置的分辨率差值最小的相机支持的分辨率大小
-            if (previewSize.width * mPreviewScale == previewSize.height) {
-                int delta = Math.abs(mPreviewWidth - previewSize.width);
+            Size size = sizes.get(i);
+            Log.v(TAG, "SupportedSize, width: " + size.width + ", height: " + size.height);
+            // 先判断比例是否相等
+            if (size.width * mPreviewScale == size.height) {
+                int delta = Math.abs(mPreviewWidth - size.width);
                 if (delta == 0) {
-                    return previewSize;
+                    return size;
                 }
                 if (minDelta > delta) {
                     minDelta = delta;
@@ -152,7 +151,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
                 }
             }
         }
-        return sizes.get(index); // 默认返回与设置的分辨率最接近的预览尺寸
+        return sizes.get(index);
     }
 
     /**
@@ -194,7 +193,6 @@ public class CameraProxy implements Camera.AutoFocusCallback {
         } else {  // back-facing camera
             rotation = (mCameraInfo.orientation + orientation) % 360;
         }
-        Log.d(TAG, "picture rotation: " + rotation);
         mLatestRotation = rotation;
     }
 

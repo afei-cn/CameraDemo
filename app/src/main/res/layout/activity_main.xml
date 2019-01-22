@@ -38,4 +38,28 @@
         android:text="GLSurfaceView + Camera"
         android:textAllCaps="false"/>
 
+    <Button
+        android:id="@+id/camera_btn4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startCameraActivity"
+        android:text="SurfaceView + Camera2"
+        android:textAllCaps="false"/>
+
+    <Button
+        android:id="@+id/camera_btn5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startCameraActivity"
+        android:text="TextureView + Camera2"
+        android:textAllCaps="false"/>
+
+    <Button
+        android:id="@+id/camera_btn6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:onClick="startCameraActivity"
+        android:text="GLSurfaceView + Camera2"
+        android:textAllCaps="false"/>
+
 </LinearLayout>
