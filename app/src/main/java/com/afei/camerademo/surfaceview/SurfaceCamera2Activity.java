@@ -1,9 +1,8 @@
-package com.afei.camerademo.textureview;
+package com.afei.camerademo.surfaceview;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.hardware.Camera;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -14,24 +13,24 @@ import android.widget.ImageView;
 
 import com.afei.camerademo.ImageUtils;
 import com.afei.camerademo.R;
-import com.afei.camerademo.camera.CameraProxy;
+import com.afei.camerademo.camera.Camera2Proxy;
 
-public class TextureCameraActivity extends AppCompatActivity implements View.OnClickListener {
+public class SurfaceCamera2Activity extends AppCompatActivity implements View.OnClickListener {
 
-    private static final String TAG = "TextureCameraActivity";
+    private static final String TAG = "SurfaceCamera2Activity";
 
     private ImageView mCloseIv;
     private ImageView mSwitchCameraIv;
     private ImageView mTakePictureIv;
     private ImageView mPictureIv;
-    private CameraTextureView mCameraView;
+    private Camera2SurfaceView mCameraView;
 
-    private CameraProxy mCameraProxy;
+    private Camera2Proxy mCameraProxy;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_texture_camera);
+        setContentView(R.layout.activity_surface_camera2);
         initView();
     }
 
@@ -57,10 +56,9 @@ public class TextureCameraActivity extends AppCompatActivity implements View.OnC
                 break;
             case R.id.toolbar_switch_iv:
                 mCameraProxy.switchCamera();
-                mCameraProxy.startPreview(mCameraView.getSurfaceTexture());
+                mCameraProxy.startPreview();
                 break;
             case R.id.take_picture_iv:
-                mCameraProxy.takePicture(mPictureCallback);
                 break;
             case R.id.picture_iv:
                 Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -69,14 +67,6 @@ public class TextureCameraActivity extends AppCompatActivity implements View.OnC
         }
     }
 
-    private final Camera.PictureCallback mPictureCallback = new Camera.PictureCallback() {
-        @Override
-        public void onPictureTaken(byte[] data, Camera camera) {
-            mCameraProxy.startPreview(mCameraView.getSurfaceTexture()); // 拍照结束后继续预览
-            new ImageSaveTask().execute(data); // 保存图片
-        }
-    };
-
     private class ImageSaveTask extends AsyncTask<byte[], Void, Void> {
 
         @Override
@@ -84,12 +74,8 @@ public class TextureCameraActivity extends AppCompatActivity implements View.OnC
             long time = System.currentTimeMillis();
             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes[0], 0, bytes[0].length);
             Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
-            int rotation = mCameraProxy.getLatestRotation();
             time = System.currentTimeMillis();
-            Bitmap rotateBitmap = ImageUtils.rotateBitmap(bitmap, rotation, mCameraProxy.isFrontCamera(), true);
-            Log.d(TAG, "rotateBitmap time: " + (System.currentTimeMillis() - time));
-            time = System.currentTimeMillis();
-            ImageUtils.saveBitmap(rotateBitmap);
+            ImageUtils.saveBitmap(bitmap);
             Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
             return null;
         }

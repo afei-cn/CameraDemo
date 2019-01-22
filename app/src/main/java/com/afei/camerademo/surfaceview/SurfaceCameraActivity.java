@@ -77,7 +77,6 @@ public class SurfaceCameraActivity extends AppCompatActivity implements View.OnC
         }
     };
 
-
     private class ImageSaveTask extends AsyncTask<byte[], Void, Void> {
 
         @Override
