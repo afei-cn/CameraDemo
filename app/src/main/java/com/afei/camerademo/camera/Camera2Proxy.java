@@ -210,6 +210,9 @@ public class Camera2Proxy {
             captureBuilder.addTarget(mImageReader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(mDeviceOrientation));
+            // 预览如果有放大，拍照的时候也应该保存相同的缩放
+            Rect zoomRect = mPreviewRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
+            captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
             mCaptureSession.stopRepeating();
             mCaptureSession.abortCaptures();
             mCaptureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
