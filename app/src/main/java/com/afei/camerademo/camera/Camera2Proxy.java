@@ -21,6 +21,7 @@ import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Size;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
@@ -36,8 +37,6 @@ public class Camera2Proxy {
 
     private int mCameraId = CameraCharacteristics.LENS_FACING_FRONT; // 要打开的摄像头ID
     private Size mPreviewSize; // 预览大小
-    private int mViewWidth; // 控件宽度
-    private int mViewHeight; // 控件高度
 
     private CameraManager mCameraManager; // 相机管理者
     private CameraCharacteristics mCameraCharacteristics; // 相机属性
@@ -48,6 +47,8 @@ public class Camera2Proxy {
     private HandlerThread mBackgroundThread;
     private ImageReader mImageReader;
     private Surface mPreviewSurface;
+    private OrientationEventListener mOrientationEventListener;
+    private int mLatestRotation = 0;
 
     /**
      * 打开摄像头的回调
@@ -73,29 +74,23 @@ public class Camera2Proxy {
         }
     };
 
-    private ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener
-            () {
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            // TODO 拍照
-        }
-    };
-
     @TargetApi(Build.VERSION_CODES.M)
     public Camera2Proxy(Activity activity) {
         mActivity = activity;
         mCameraManager = (CameraManager) mActivity.getSystemService(Context.CAMERA_SERVICE);
-    }
-
-    public void setViewSize(int width, int height) {
-        mViewWidth = width;
-        mViewHeight = height;
+        mOrientationEventListener = new OrientationEventListener(mActivity) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                mLatestRotation = orientation;
+            }
+        };
     }
 
     @SuppressLint("MissingPermission")
-    public void openCamera() {
+    public void openCamera(int width, int height) {
         Log.v(TAG, "openCamera");
         startBackgroundThread(); // 对应 releaseCamera() 方法中的 stopBackgroundThread()
+        mOrientationEventListener.enable();
         try {
             mCameraCharacteristics = mCameraManager.getCameraCharacteristics(Integer.toString(mCameraId));
             StreamConfigurationMap map = mCameraCharacteristics.get(CameraCharacteristics
@@ -104,9 +99,8 @@ public class Camera2Proxy {
             Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
             Log.d(TAG, "picture size: " + largest.getWidth() + "*" + largest.getHeight());
             mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, 2);
-            mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mBackgroundHandler);
             // 预览大小，根据上面选择的拍照图片的长宽比，选择一个和控件长宽差不多的大小
-            mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), largest);
+            mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), width, height, largest);
             Log.d(TAG, "preview size: " + mPreviewSize.getWidth() + "*" + mPreviewSize.getHeight());
             // 打开摄像头
             mCameraManager.openCamera(Integer.toString(mCameraId), mStateCallback, mBackgroundHandler);
@@ -129,7 +123,16 @@ public class Camera2Proxy {
             mImageReader.close();
             mImageReader = null;
         }
+        mOrientationEventListener.disable();
         stopBackgroundThread(); // 对应 openCamera() 方法中的 startBackgroundThread()
+    }
+
+    public void setImageAvailableListener(ImageReader.OnImageAvailableListener onImageAvailableListener) {
+        if (mImageReader == null) {
+            Log.w(TAG, "setImageAvailableListener: mImageReader is null");
+            return;
+        }
+        mImageReader.setOnImageAvailableListener(onImageAvailableListener, null);
     }
 
     public void setPreviewSurface(SurfaceHolder holder) {
@@ -198,13 +201,13 @@ public class Camera2Proxy {
         }
     }
 
-    private void captureStillPicture() {
+    public void captureStillPicture() {
         try {
             CaptureRequest.Builder captureBuilder = mCameraDevice.createCaptureRequest(CameraDevice
                     .TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(mImageReader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getRotation());
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(mLatestRotation));
             mCaptureSession.stopRepeating();
             mCaptureSession.abortCaptures();
             mCaptureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
@@ -220,25 +223,44 @@ public class Camera2Proxy {
         }
     }
 
+    private int getJpegOrientation(int deviceOrientation) {
+        if (deviceOrientation == android.view.OrientationEventListener.ORIENTATION_UNKNOWN) return 0;
+        int sensorOrientation = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+
+        // Round device orientation to a multiple of 90
+        deviceOrientation = (deviceOrientation + 45) / 90 * 90;
+
+        // Reverse device orientation for front-facing cameras
+        boolean facingFront = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT;
+        if (facingFront) deviceOrientation = -deviceOrientation;
+
+        // Calculate desired JPEG orientation relative to camera orientation to make
+        // the image upright relative to the device orientation
+        int jpegOrientation = (sensorOrientation + deviceOrientation + 360) % 360;
+        Log.d(TAG, "jpegOrientation: " + jpegOrientation);
+        return jpegOrientation;
+    }
+
     public boolean isFrontCamera() {
-        return mCameraId == CameraCharacteristics.LENS_FACING_FRONT;
+        return mCameraId == CameraCharacteristics.LENS_FACING_BACK;
     }
 
     public Size getPreviewSize() {
         return mPreviewSize;
     }
 
-    public void switchCamera() {
+    public void switchCamera(int width, int height) {
         mCameraId ^= 1;
+        Log.d(TAG, "switchCamera: mCameraId: " + mCameraId);
         releaseCamera();
-        openCamera();
+        openCamera(width, height);
     }
 
-    private Size chooseOptimalSize(Size[] sizes, Size pictureSize) {
+    private Size chooseOptimalSize(Size[] sizes, int viewWidth, int viewHeight, Size pictureSize) {
         int totalRotation = getRotation();
         boolean swapRotation = totalRotation == 90 || totalRotation == 270;
-        int width = swapRotation ? mViewHeight : mViewWidth;
-        int height = swapRotation ? mViewWidth : mViewHeight;
+        int width = swapRotation ? viewHeight : viewWidth;
+        int height = swapRotation ? viewWidth : viewHeight;
         return getSuitableSize(sizes, width, height, pictureSize);
     }
 

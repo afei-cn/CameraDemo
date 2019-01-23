@@ -3,6 +3,8 @@ package com.afei.camerademo.surfaceview;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -14,6 +16,8 @@ import android.widget.ImageView;
 import com.afei.camerademo.ImageUtils;
 import com.afei.camerademo.R;
 import com.afei.camerademo.camera.Camera2Proxy;
+
+import java.nio.ByteBuffer;
 
 public class SurfaceCamera2Activity extends AppCompatActivity implements View.OnClickListener {
 
@@ -55,10 +59,12 @@ public class SurfaceCamera2Activity extends AppCompatActivity implements View.On
                 finish();
                 break;
             case R.id.toolbar_switch_iv:
-                mCameraProxy.switchCamera();
+                mCameraProxy.switchCamera(mCameraView.getWidth(), mCameraView.getHeight());
                 mCameraProxy.startPreview();
                 break;
             case R.id.take_picture_iv:
+                mCameraProxy.setImageAvailableListener(mOnImageAvailableListener);
+                mCameraProxy.captureStillPicture(); // 拍照
                 break;
             case R.id.picture_iv:
                 Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -67,16 +73,39 @@ public class SurfaceCamera2Activity extends AppCompatActivity implements View.On
         }
     }
 
-    private class ImageSaveTask extends AsyncTask<byte[], Void, Void> {
+    private ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener
+            () {
+        @Override
+        public void onImageAvailable(ImageReader reader) {
+            new ImageSaveTask().execute(reader.acquireNextImage()); // 保存图片
+        }
+    };
+
+    private class ImageSaveTask extends AsyncTask<Image, Void, Void> {
 
         @Override
-        protected Void doInBackground(byte[]... bytes) {
+        protected Void doInBackground(Image ... images) {
+            ByteBuffer buffer = images[0].getPlanes()[0].getBuffer();
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+
             long time = System.currentTimeMillis();
-            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes[0], 0, bytes[0].length);
-            Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
-            time = System.currentTimeMillis();
-            ImageUtils.saveBitmap(bitmap);
-            Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
+            if (mCameraProxy.isFrontCamera()) {
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
+                time = System.currentTimeMillis();
+                // 前置摄像头需要左右镜像
+                Bitmap rotateBitmap = ImageUtils.rotateBitmap(bitmap, 0, true, true);
+                Log.d(TAG, "rotateBitmap time: " + (System.currentTimeMillis() - time));
+                time = System.currentTimeMillis();
+                ImageUtils.saveBitmap(rotateBitmap);
+                Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
+                rotateBitmap.recycle();
+            } else {
+                ImageUtils.saveImage(bytes);
+                Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
+            }
+            images[0].close();
             return null;
         }
 

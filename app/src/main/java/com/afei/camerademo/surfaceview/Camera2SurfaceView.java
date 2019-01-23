@@ -3,12 +3,15 @@ package com.afei.camerademo.surfaceview;
 import android.app.Activity;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import com.afei.camerademo.camera.Camera2Proxy;
 
 public class Camera2SurfaceView extends SurfaceView {
+
+    private static final String TAG = "Camera2SurfaceView";
 
     private Camera2Proxy mCameraProxy;
     private int mRatioWidth = 0;
@@ -40,11 +43,13 @@ public class Camera2SurfaceView extends SurfaceView {
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
             mCameraProxy.setPreviewSurface(holder);
-            mCameraProxy.openCamera();
+            Log.d(TAG, "surfaceCreated: width: " + getWidth() + ", height: " + getHeight());
+            mCameraProxy.openCamera(getWidth(), getHeight());
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            Log.d(TAG, "surfaceChanged: width: " + width + ", height: " + height);
             int previewWidth = mCameraProxy.getPreviewSize().getWidth();
             int previewHeight = mCameraProxy.getPreviewSize().getHeight();
             if (width > height) {

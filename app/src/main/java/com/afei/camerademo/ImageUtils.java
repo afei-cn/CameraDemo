@@ -30,7 +30,7 @@ public class ImageUtils {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss");
 
     public static Bitmap rotateBitmap(Bitmap source, int degree, boolean flipHorizontal, boolean recycle) {
-        if (degree == 0) {
+        if (degree == 0 && !flipHorizontal) {
             return source;
         }
         Matrix matrix = new Matrix();
@@ -108,15 +108,18 @@ public class ImageUtils {
     }
 
     public static Bitmap getLatestThumbBitmap() {
+        Bitmap bitmap = null;
         // 按照时间顺序降序查询
         Cursor cursor = MediaStore.Images.Media.query(sContext.getContentResolver(), MediaStore.Images.Media
                 .EXTERNAL_CONTENT_URI, STORE_IMAGES, null, null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
-        cursor.moveToFirst();
-        long id = cursor.getLong(0);
-        Bitmap bitmap = MediaStore.Images.Thumbnails.getThumbnail(sContext.getContentResolver(), id, MediaStore.Images
-                .Thumbnails.MICRO_KIND, null);
-        Log.d(TAG, "bitmap width: " + bitmap.getWidth());
-        Log.d(TAG, "bitmap height: " + bitmap.getHeight());
+        boolean first = cursor.moveToFirst();
+        if (first) {
+            long id = cursor.getLong(0);
+            bitmap = MediaStore.Images.Thumbnails.getThumbnail(sContext.getContentResolver(), id, MediaStore.Images
+                    .Thumbnails.MICRO_KIND, null);
+            Log.d(TAG, "bitmap width: " + bitmap.getWidth());
+            Log.d(TAG, "bitmap height: " + bitmap.getHeight());
+        }
         cursor.close();
         return bitmap;
     }

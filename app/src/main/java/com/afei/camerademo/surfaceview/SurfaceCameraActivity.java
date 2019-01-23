@@ -91,6 +91,7 @@ public class SurfaceCameraActivity extends AppCompatActivity implements View.OnC
             time = System.currentTimeMillis();
             ImageUtils.saveBitmap(rotateBitmap);
             Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
+            rotateBitmap.recycle();
             return null;
         }
 
