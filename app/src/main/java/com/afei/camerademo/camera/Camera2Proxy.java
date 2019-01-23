@@ -5,6 +5,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -48,7 +49,8 @@ public class Camera2Proxy {
     private ImageReader mImageReader;
     private Surface mPreviewSurface;
     private OrientationEventListener mOrientationEventListener;
-    private int mLatestRotation = 0;
+    private int mDeviceOrientation = 0; // 设备方向，由相机传感器获取
+    private int mZoom = 1; // 缩放
 
     /**
      * 打开摄像头的回调
@@ -81,7 +83,7 @@ public class Camera2Proxy {
         mOrientationEventListener = new OrientationEventListener(mActivity) {
             @Override
             public void onOrientationChanged(int orientation) {
-                mLatestRotation = orientation;
+                mDeviceOrientation = orientation;
             }
         };
     }
@@ -207,7 +209,7 @@ public class Camera2Proxy {
                     .TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(mImageReader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(mLatestRotation));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(mDeviceOrientation));
             mCaptureSession.stopRepeating();
             mCaptureSession.abortCaptures();
             mCaptureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
@@ -303,6 +305,30 @@ public class Camera2Proxy {
             }
         }
         return sizes[index];
+    }
+
+    public void handleZoom(boolean isZoomIn) {
+        int maxZoom = mCameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM).intValue() * 10;
+        Log.d(TAG, "handleZoom: maxZoom: " + maxZoom);
+        Rect rect = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+        if (isZoomIn && mZoom < maxZoom) {
+            mZoom++;
+        } else if (mZoom > 1) {
+            mZoom--;
+        }
+        Log.d(TAG, "handleZoom: mZoom: " + mZoom);
+        int minW = rect.width() / maxZoom;
+        int minH = rect.height() / maxZoom;
+        int difW = rect.width() - minW;
+        int difH = rect.height() - minH;
+        int cropW = difW * mZoom / 100;
+        int cropH = difH * mZoom / 100;
+        cropW -= cropW & 3;
+        cropH -= cropH & 3;
+        Log.d(TAG, "handleZoom: cropW: " + cropW + ", cropH: " + cropH);
+        Rect zoomRect = new Rect(cropW, cropH, rect.width() - cropW, rect.height() - cropH);
+        mPreviewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+        startPreview(); // 需要重新 start preview 才能生效
     }
 
     private void startBackgroundThread() {
