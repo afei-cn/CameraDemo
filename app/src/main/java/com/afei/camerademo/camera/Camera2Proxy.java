@@ -12,8 +12,11 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.MeteringRectangle;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.os.Build;
@@ -38,17 +41,19 @@ public class Camera2Proxy {
 
     private int mCameraId = CameraCharacteristics.LENS_FACING_FRONT; // 要打开的摄像头ID
     private Size mPreviewSize; // 预览大小
-
     private CameraManager mCameraManager; // 相机管理者
     private CameraCharacteristics mCameraCharacteristics; // 相机属性
     private CameraDevice mCameraDevice; // 相机对象
-    private CaptureRequest.Builder mPreviewRequestBuilder; // 相机预览请求的构造器
     private CameraCaptureSession mCaptureSession;
+    private CaptureRequest.Builder mPreviewRequestBuilder; // 相机预览请求的构造器
+    private CaptureRequest mCaptureRequest;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
     private ImageReader mImageReader;
     private Surface mPreviewSurface;
     private OrientationEventListener mOrientationEventListener;
+
+    private int mDisplayRotate = 0;
     private int mDeviceOrientation = 0; // 设备方向，由相机传感器获取
     private int mZoom = 1; // 缩放
 
@@ -60,7 +65,7 @@ public class Camera2Proxy {
         public void onOpened(@NonNull CameraDevice camera) {
             Log.d(TAG, "onOpened");
             mCameraDevice = camera;
-            initPreviewRequestBuilder();
+            initPreviewRequest();
         }
 
         @Override
@@ -98,7 +103,8 @@ public class Camera2Proxy {
             StreamConfigurationMap map = mCameraCharacteristics.get(CameraCharacteristics
                     .SCALER_STREAM_CONFIGURATION_MAP);
             // 拍照大小，选择能支持的一个最大的图片大小
-            Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
+            Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new
+                    CompareSizesByArea());
             Log.d(TAG, "picture size: " + largest.getWidth() + "*" + largest.getHeight());
             mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, 2);
             // 预览大小，根据上面选择的拍照图片的长宽比，选择一个和控件长宽差不多的大小
@@ -147,7 +153,7 @@ public class Camera2Proxy {
         mPreviewSurface = surface;
     }
 
-    private void initPreviewRequestBuilder() {
+    private void initPreviewRequest() {
         try {
             mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             mPreviewRequestBuilder.addTarget(mPreviewSurface); // 设置预览输出的 Surface
@@ -184,7 +190,8 @@ public class Camera2Proxy {
         }
         try {
             // 开始预览，即一直发送预览的请求
-            mCaptureSession.setRepeatingRequest(mPreviewRequestBuilder.build(), null, mBackgroundHandler);
+            mCaptureRequest = mPreviewRequestBuilder.build();
+            mCaptureSession.setRepeatingRequest(mCaptureRequest, null, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -236,7 +243,8 @@ public class Camera2Proxy {
         deviceOrientation = (deviceOrientation + 45) / 90 * 90;
 
         // Reverse device orientation for front-facing cameras
-        boolean facingFront = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT;
+        boolean facingFront = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics
+                .LENS_FACING_FRONT;
         if (facingFront) deviceOrientation = -deviceOrientation;
 
         // Calculate desired JPEG orientation relative to camera orientation to make
@@ -286,7 +294,8 @@ public class Camera2Proxy {
                 break;
         }
         int sensorOrientation = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-        return (displayRotation + sensorOrientation + 270) % 360;
+        mDisplayRotate = (displayRotation + sensorOrientation + 270) % 360;
+        return mDisplayRotate;
     }
 
     private Size getSuitableSize(Size[] sizes, int width, int height, Size pictureSize) {
@@ -311,7 +320,11 @@ public class Camera2Proxy {
     }
 
     public void handleZoom(boolean isZoomIn) {
-        int maxZoom = mCameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM).intValue() * 10;
+        if (mCameraDevice == null || mCameraCharacteristics == null || mPreviewRequestBuilder == null) {
+            return;
+        }
+        int maxZoom = mCameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM).intValue()
+                * 10;
         Log.d(TAG, "handleZoom: maxZoom: " + maxZoom);
         Rect rect = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
         if (isZoomIn && mZoom < maxZoom) {
@@ -334,6 +347,126 @@ public class Camera2Proxy {
         startPreview(); // 需要重新 start preview 才能生效
     }
 
+    public void focusOnPoint(double x, double y, int width, int height) {
+        if (mCameraDevice == null || mPreviewRequestBuilder == null) {
+            return;
+        }
+
+        // 先取相对于view上面的坐标
+        int previewWidth = mPreviewSize.getWidth();
+        int previewHeight = mPreviewSize.getHeight();
+        if (mDisplayRotate == 90 || mDisplayRotate == 270) {
+            previewWidth = mPreviewSize.getHeight();
+            previewHeight = mPreviewSize.getWidth();
+        }
+
+        // 计算摄像头取出的图像相对于view放大了多少，以及有多少偏移
+        double tmp;
+        double imgScale = 1.0;
+        double verticalOffset = 0;
+        double horizontalOffset = 0;
+        if (previewHeight * width > previewWidth * height) {
+            imgScale = width * 1.0 / previewWidth;
+            verticalOffset = (previewHeight - height / imgScale) / 2;
+        } else {
+            imgScale = height * 1.0 / previewHeight;
+            horizontalOffset = (previewWidth - width / imgScale) / 2;
+        }
+
+        // 将点击的坐标转换为图像上的坐标
+        x = x / imgScale + horizontalOffset;
+        y = y / imgScale + verticalOffset;
+        if (90 == mDisplayRotate) {
+            tmp = x;
+            x = y;
+            y = mPreviewSize.getHeight() - tmp;
+        } else if (270 == mDisplayRotate) {
+            tmp = x;
+            x = mPreviewSize.getWidth() - y;
+            y = tmp;
+        }
+
+        // 计算取到的图像相对于裁剪区域的缩放系数，以及位移
+        Rect cropRegion = mPreviewRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
+        if (cropRegion == null) {
+            Log.w(TAG, "can't get crop region");
+            cropRegion = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+        }
+        int cropWidth = cropRegion.width();
+        int cropHeight = cropRegion.height();
+        if (mPreviewSize.getHeight() * cropWidth > mPreviewSize.getWidth() * cropHeight) {
+            imgScale = cropHeight * 1.0 / mPreviewSize.getHeight();
+            verticalOffset = 0;
+            horizontalOffset = (cropWidth - imgScale * mPreviewSize.getWidth()) / 2;
+        } else {
+            imgScale = cropWidth * 1.0 / mPreviewSize.getWidth();
+            horizontalOffset = 0;
+            verticalOffset = (cropHeight - imgScale * mPreviewSize.getHeight()) / 2;
+        }
+
+        // 将点击区域相对于图像的坐标，转化为相对于成像区域的坐标
+        x = x * imgScale + horizontalOffset + cropRegion.left;
+        y = y * imgScale + verticalOffset + cropRegion.top;
+
+        double tapAreaRatio = 0.1;
+        Rect rect = new Rect();
+        rect.left = clamp((int) (x - tapAreaRatio / 2 * cropRegion.width()), 0, cropRegion.width());
+        rect.right = clamp((int) (x + tapAreaRatio / 2 * cropRegion.width()), 0, cropRegion.width());
+        rect.top = clamp((int) (y - tapAreaRatio / 2 * cropRegion.height()), 0, cropRegion.height());
+        rect.bottom = clamp((int) (y + tapAreaRatio / 2 * cropRegion.height()), 0, cropRegion.height());
+
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, new MeteringRectangle[]{new MeteringRectangle
+                (rect, 1000)});
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, new MeteringRectangle[]{new MeteringRectangle
+                (rect, 1000)});
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER, CameraMetadata
+                .CONTROL_AE_PRECAPTURE_TRIGGER_START);
+
+        try {
+            // 开始预览，并设置对焦请求的监听回调
+            mCaptureRequest = mPreviewRequestBuilder.build();
+            mCaptureSession.capture(mCaptureRequest, mAfCaptureCallback, mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private CameraCaptureSession.CaptureCallback mAfCaptureCallback = new CameraCaptureSession.CaptureCallback() {
+
+        private void process(CaptureResult result) {
+            Integer state = result.get(CaptureResult.CONTROL_AF_STATE);
+            if (null == state) {
+                return;
+            }
+            Log.d(TAG, "process: CONTROL_AF_STATE: " + state);
+            if (state == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED || state == CaptureResult
+                    .CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
+                Log.d(TAG, "process: start normal preview");
+                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.FLASH_MODE_OFF);
+                startPreview();
+            }
+        }
+
+        @Override
+        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                        @NonNull CaptureRequest request,
+                                        @NonNull CaptureResult partialResult) {
+            process(partialResult);
+        }
+
+        @Override
+        public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                       @NonNull CaptureRequest request,
+                                       @NonNull TotalCaptureResult result) {
+            process(result);
+        }
+    };
+
+
     private void startBackgroundThread() {
         if (mBackgroundThread == null || mBackgroundHandler == null) {
             Log.v(TAG, "startBackgroundThread");
@@ -353,6 +486,12 @@ public class Camera2Proxy {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    private int clamp(int x, int min, int max) {
+        if (x > max) return max;
+        if (x < min) return min;
+        return x;
     }
 
     /**

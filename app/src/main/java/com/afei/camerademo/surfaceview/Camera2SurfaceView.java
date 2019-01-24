@@ -99,7 +99,7 @@ public class Camera2SurfaceView extends SurfaceView {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 1) {
-            // TODO 点击聚焦
+            mCameraProxy.focusOnPoint(event.getX(), event.getY(), getWidth(), getHeight());
             return true;
         }
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
