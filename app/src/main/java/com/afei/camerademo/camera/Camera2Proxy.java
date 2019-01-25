@@ -46,7 +46,7 @@ public class Camera2Proxy {
     private CameraDevice mCameraDevice; // 相机对象
     private CameraCaptureSession mCaptureSession;
     private CaptureRequest.Builder mPreviewRequestBuilder; // 相机预览请求的构造器
-    private CaptureRequest mCaptureRequest;
+    private CaptureRequest mPreviewRequest;
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
     private ImageReader mImageReader;
@@ -149,8 +149,7 @@ public class Camera2Proxy {
 
     public void setPreviewSurface(SurfaceTexture surfaceTexture) {
         surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-        Surface surface = new Surface(surfaceTexture);
-        mPreviewSurface = surface;
+        mPreviewSurface = new Surface(surfaceTexture);
     }
 
     private void initPreviewRequest() {
@@ -166,9 +165,11 @@ public class Camera2Proxy {
                             // 设置连续自动对焦
                             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest
                                     .CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                            // 设置关闭闪光灯
-                            mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.FLASH_MODE_OFF);
+                            // 设置自动曝光
+                            mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest
+                                    .CONTROL_AE_MODE_ON_AUTO_FLASH);
                             // 设置完后自动开始预览
+                            mPreviewRequest = mPreviewRequestBuilder.build();
                             startPreview();
                         }
 
@@ -190,8 +191,7 @@ public class Camera2Proxy {
         }
         try {
             // 开始预览，即一直发送预览的请求
-            mCaptureRequest = mPreviewRequestBuilder.build();
-            mCaptureSession.setRepeatingRequest(mCaptureRequest, null, mBackgroundHandler);
+            mCaptureSession.setRepeatingRequest(mPreviewRequest, null, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -219,17 +219,28 @@ public class Camera2Proxy {
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(mDeviceOrientation));
             // 预览如果有放大，拍照的时候也应该保存相同的缩放
             Rect zoomRect = mPreviewRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
-            captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            if (zoomRect != null) {
+                captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            }
             mCaptureSession.stopRepeating();
             mCaptureSession.abortCaptures();
+            final long time = System.currentTimeMillis();
             mCaptureSession.capture(captureBuilder.build(), new CameraCaptureSession.CaptureCallback() {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
+                    Log.w(TAG, "onCaptureCompleted, time: " + (System.currentTimeMillis() - time));
+                    try {
+                        mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata
+                                .CONTROL_AF_TRIGGER_CANCEL);
+                        mCaptureSession.capture(mPreviewRequestBuilder.build(), null, mBackgroundHandler);
+                    } catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
                     startPreview();
                 }
-            }, null);
+            }, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -238,15 +249,12 @@ public class Camera2Proxy {
     private int getJpegOrientation(int deviceOrientation) {
         if (deviceOrientation == android.view.OrientationEventListener.ORIENTATION_UNKNOWN) return 0;
         int sensorOrientation = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-
         // Round device orientation to a multiple of 90
         deviceOrientation = (deviceOrientation + 45) / 90 * 90;
-
         // Reverse device orientation for front-facing cameras
         boolean facingFront = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics
                 .LENS_FACING_FRONT;
         if (facingFront) deviceOrientation = -deviceOrientation;
-
         // Calculate desired JPEG orientation relative to camera orientation to make
         // the image upright relative to the device orientation
         int jpegOrientation = (sensorOrientation + deviceOrientation + 360) % 360;
@@ -301,7 +309,8 @@ public class Camera2Proxy {
     private Size getSuitableSize(Size[] sizes, int width, int height, Size pictureSize) {
         int minDelta = Integer.MAX_VALUE; // 最小的差值，初始值应该设置大点保证之后的计算中会被重置
         int index = 0; // 最小的差值对应的索引坐标
-        float aspectRatio = pictureSize.getHeight() / pictureSize.getWidth();
+        float aspectRatio = pictureSize.getHeight() * 1.0f / pictureSize.getWidth();
+        Log.d(TAG, "getSuitableSize. aspectRatio: " + aspectRatio);
         for (int i = 0; i < sizes.length; i++) {
             Size size = sizes[i];
             // 先判断比例是否相等
@@ -344,6 +353,7 @@ public class Camera2Proxy {
         Log.d(TAG, "handleZoom: cropW: " + cropW + ", cropH: " + cropH);
         Rect zoomRect = new Rect(cropW, cropH, rect.width() - cropW, rect.height() - cropH);
         mPreviewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+        mPreviewRequest = mPreviewRequestBuilder.build();
         startPreview(); // 需要重新 start preview 才能生效
     }
 
@@ -351,18 +361,16 @@ public class Camera2Proxy {
         if (mCameraDevice == null || mPreviewRequestBuilder == null) {
             return;
         }
-
-        // 先取相对于view上面的坐标
+        // 1. 先取相对于view上面的坐标
         int previewWidth = mPreviewSize.getWidth();
         int previewHeight = mPreviewSize.getHeight();
         if (mDisplayRotate == 90 || mDisplayRotate == 270) {
             previewWidth = mPreviewSize.getHeight();
             previewHeight = mPreviewSize.getWidth();
         }
-
-        // 计算摄像头取出的图像相对于view放大了多少，以及有多少偏移
+        // 2. 计算摄像头取出的图像相对于view放大了多少，以及有多少偏移
         double tmp;
-        double imgScale = 1.0;
+        double imgScale;
         double verticalOffset = 0;
         double horizontalOffset = 0;
         if (previewHeight * width > previewWidth * height) {
@@ -372,8 +380,7 @@ public class Camera2Proxy {
             imgScale = height * 1.0 / previewHeight;
             horizontalOffset = (previewWidth - width / imgScale) / 2;
         }
-
-        // 将点击的坐标转换为图像上的坐标
+        // 3. 将点击的坐标转换为图像上的坐标
         x = x / imgScale + horizontalOffset;
         y = y / imgScale + verticalOffset;
         if (90 == mDisplayRotate) {
@@ -385,8 +392,7 @@ public class Camera2Proxy {
             x = mPreviewSize.getWidth() - y;
             y = tmp;
         }
-
-        // 计算取到的图像相对于裁剪区域的缩放系数，以及位移
+        // 4. 计算取到的图像相对于裁剪区域的缩放系数，以及位移
         Rect cropRegion = mPreviewRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
         if (cropRegion == null) {
             Log.w(TAG, "can't get crop region");
@@ -403,18 +409,16 @@ public class Camera2Proxy {
             horizontalOffset = 0;
             verticalOffset = (cropHeight - imgScale * mPreviewSize.getHeight()) / 2;
         }
-
-        // 将点击区域相对于图像的坐标，转化为相对于成像区域的坐标
+        // 5. 将点击区域相对于图像的坐标，转化为相对于成像区域的坐标
         x = x * imgScale + horizontalOffset + cropRegion.left;
         y = y * imgScale + verticalOffset + cropRegion.top;
-
         double tapAreaRatio = 0.1;
         Rect rect = new Rect();
         rect.left = clamp((int) (x - tapAreaRatio / 2 * cropRegion.width()), 0, cropRegion.width());
         rect.right = clamp((int) (x + tapAreaRatio / 2 * cropRegion.width()), 0, cropRegion.width());
         rect.top = clamp((int) (y - tapAreaRatio / 2 * cropRegion.height()), 0, cropRegion.height());
         rect.bottom = clamp((int) (y + tapAreaRatio / 2 * cropRegion.height()), 0, cropRegion.height());
-
+        // 6. 设置 AF、AE 的测光区域，即上述得到的 rect
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, new MeteringRectangle[]{new MeteringRectangle
                 (rect, 1000)});
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, new MeteringRectangle[]{new MeteringRectangle
@@ -423,17 +427,15 @@ public class Camera2Proxy {
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
         mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER, CameraMetadata
                 .CONTROL_AE_PRECAPTURE_TRIGGER_START);
-
         try {
-            // 开始预览，并设置对焦请求的监听回调
-            mCaptureRequest = mPreviewRequestBuilder.build();
-            mCaptureSession.capture(mCaptureRequest, mAfCaptureCallback, mBackgroundHandler);
+            // 7. 发送上述设置的对焦请求，并监听回调
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mAfCaptureCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
-    private CameraCaptureSession.CaptureCallback mAfCaptureCallback = new CameraCaptureSession.CaptureCallback() {
+    private final CameraCaptureSession.CaptureCallback mAfCaptureCallback = new CameraCaptureSession.CaptureCallback() {
 
         private void process(CaptureResult result) {
             Integer state = result.get(CaptureResult.CONTROL_AF_STATE);
@@ -445,7 +447,8 @@ public class Camera2Proxy {
                     .CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
                 Log.d(TAG, "process: start normal preview");
                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest
+                        .CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.FLASH_MODE_OFF);
                 startPreview();
             }

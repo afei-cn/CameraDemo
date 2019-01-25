@@ -9,7 +9,7 @@ import java.nio.FloatBuffer;
 
 public class CameraDrawer {
 
-    public final String VERTEX_SHADER = "" +
+    private final String VERTEX_SHADER = "" +
             "attribute vec4 vPosition;" +
             "attribute vec2 inputTextureCoordinate;" +
             "varying vec2 textureCoordinate;" +
@@ -18,7 +18,7 @@ public class CameraDrawer {
             "gl_Position = vPosition;"+
             "textureCoordinate = inputTextureCoordinate;" +
             "}";
-    public final String FRAGMENT_SHADER = "" +
+    private final String FRAGMENT_SHADER = "" +
             "#extension GL_OES_EGL_image_external : require\n"+
             "precision mediump float;" +
             "varying vec2 textureCoordinate;\n" +

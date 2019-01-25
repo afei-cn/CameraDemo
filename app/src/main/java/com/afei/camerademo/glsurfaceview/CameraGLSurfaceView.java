@@ -78,7 +78,7 @@ public class CameraGLSurfaceView extends GLSurfaceView implements GLSurfaceView.
         requestRender();
     }
 
-    public void setAspectRatio(int width, int height) {
+    private void setAspectRatio(int width, int height) {
         if (width < 0 || height < 0) {
             throw new IllegalArgumentException("Size cannot be negative.");
         }

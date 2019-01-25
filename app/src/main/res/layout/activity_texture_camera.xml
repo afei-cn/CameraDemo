@@ -22,7 +22,7 @@
                 android:id="@+id/toolbar_close_iv"
                 android:layout_width="45dp"
                 android:layout_height="45dp"
-                android:layout_centerVertical="true"
+                android:layout_gravity="center_vertical"
                 android:padding="10dp"
                 android:src="@mipmap/ic_close"/>
 
@@ -35,7 +35,7 @@
                 android:id="@+id/toolbar_switch_iv"
                 android:layout_width="45dp"
                 android:layout_height="45dp"
-                android:layout_centerVertical="true"
+                android:layout_gravity="center_vertical"
                 android:padding="10dp"
                 android:src="@mipmap/ic_camera_switch"/>
         </LinearLayout>

@@ -35,7 +35,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     private OrientationEventListener mOrientationEventListener;
     private int mLatestRotation = 0;
 
-    public byte[] mPreviewBuffer;
+    private byte[] mPreviewBuffer;
 
     public CameraProxy(Activity activity) {
         mActivity = activity;
@@ -187,7 +187,7 @@ public class CameraProxy implements Camera.AutoFocusCallback {
     private void setPictureRotate(int orientation) {
         if (orientation == OrientationEventListener.ORIENTATION_UNKNOWN) return;
         orientation = (orientation + 45) / 90 * 90;
-        int rotation = 0;
+        int rotation;
         if (mCameraInfo.facing == CameraInfo.CAMERA_FACING_FRONT) {
             rotation = (mCameraInfo.orientation - orientation + 360) % 360;
         } else {  // back-facing camera

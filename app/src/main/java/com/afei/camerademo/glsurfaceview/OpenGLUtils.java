@@ -95,7 +95,7 @@ public class OpenGLUtils {
             is.read(data);
             is.close();
             result = new String(data, "UTF-8");
-            result.replace("\\r\\n", "\\n");
+            result = result.replace("\\r\\n", "\\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
