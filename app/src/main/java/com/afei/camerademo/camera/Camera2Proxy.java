@@ -51,6 +51,7 @@ public class Camera2Proxy {
     private HandlerThread mBackgroundThread;
     private ImageReader mImageReader;
     private Surface mPreviewSurface;
+    private SurfaceTexture mPreviewSurfaceTexture;
     private OrientationEventListener mOrientationEventListener;
 
     private int mDisplayRotate = 0;
@@ -148,13 +149,16 @@ public class Camera2Proxy {
     }
 
     public void setPreviewSurface(SurfaceTexture surfaceTexture) {
-        surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-        mPreviewSurface = new Surface(surfaceTexture);
+        mPreviewSurfaceTexture = surfaceTexture;
     }
 
     private void initPreviewRequest() {
         try {
             mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            if (mPreviewSurfaceTexture != null && mPreviewSurface == null) { // use texture view
+                mPreviewSurfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+                mPreviewSurface = new Surface(mPreviewSurfaceTexture);
+            }
             mPreviewRequestBuilder.addTarget(mPreviewSurface); // 设置预览输出的 Surface
             mCameraDevice.createCaptureSession(Arrays.asList(mPreviewSurface, mImageReader.getSurface()),
                     new CameraCaptureSession.StateCallback() {
