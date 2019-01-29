@@ -77,10 +77,10 @@ public class TextureCameraActivity extends AppCompatActivity implements View.OnC
         }
     };
 
-    private class ImageSaveTask extends AsyncTask<byte[], Void, Void> {
+    private class ImageSaveTask extends AsyncTask<byte[], Void, Bitmap> {
 
         @Override
-        protected Void doInBackground(byte[]... bytes) {
+        protected Bitmap doInBackground(byte[]... bytes) {
             long time = System.currentTimeMillis();
             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes[0], 0, bytes[0].length);
             Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
@@ -91,12 +91,12 @@ public class TextureCameraActivity extends AppCompatActivity implements View.OnC
             time = System.currentTimeMillis();
             ImageUtils.saveBitmap(rotateBitmap);
             Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
-            return null;
+            return ImageUtils.getLatestThumbBitmap();
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            mPictureIv.setImageBitmap(ImageUtils.getLatestThumbBitmap());
+        protected void onPostExecute(Bitmap bitmap) {
+            mPictureIv.setImageBitmap(bitmap);
         }
     }
 }

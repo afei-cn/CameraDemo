@@ -1,4 +1,4 @@
-package com.afei.camerademo.textureview;
+package com.afei.camerademo.glsurfaceview;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -19,22 +19,22 @@ import com.afei.camerademo.camera.Camera2Proxy;
 
 import java.nio.ByteBuffer;
 
-public class TextureCamera2Activity extends AppCompatActivity implements View.OnClickListener {
+public class GLSurfaceCamera2Activity extends AppCompatActivity implements View.OnClickListener {
 
-    private static final String TAG = "TextureCameraActivity";
+    private static final String TAG = "GLSurfaceCamera2Act";
 
     private ImageView mCloseIv;
     private ImageView mSwitchCameraIv;
     private ImageView mTakePictureIv;
     private ImageView mPictureIv;
-    private Camera2TextureView mCameraView;
+    private Camera2GLSurfaceView mCameraView;
 
     private Camera2Proxy mCameraProxy;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_texture_camera2);
+        setContentView(R.layout.activity_glsurface_camera2);
         initView();
     }
 
@@ -84,7 +84,7 @@ public class TextureCamera2Activity extends AppCompatActivity implements View.On
     private class ImageSaveTask extends AsyncTask<Image, Void, Bitmap> {
 
         @Override
-        protected Bitmap doInBackground(Image ... images) {
+        protected Bitmap doInBackground(Image... images) {
             ByteBuffer buffer = images[0].getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
@@ -114,4 +114,5 @@ public class TextureCamera2Activity extends AppCompatActivity implements View.On
             mPictureIv.setImageBitmap(bitmap);
         }
     }
+
 }

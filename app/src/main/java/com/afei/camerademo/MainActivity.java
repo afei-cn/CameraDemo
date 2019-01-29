@@ -14,6 +14,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Toast;
 
+import com.afei.camerademo.glsurfaceview.GLSurfaceCamera2Activity;
 import com.afei.camerademo.glsurfaceview.GLSurfaceCameraActivity;
 import com.afei.camerademo.surfaceview.SurfaceCamera2Activity;
 import com.afei.camerademo.surfaceview.SurfaceCameraActivity;
@@ -46,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.camera_btn5:
                 intent = new Intent(this, TextureCamera2Activity.class);
+                break;
+            case R.id.camera_btn6:
+                intent = new Intent(this, GLSurfaceCamera2Activity.class);
                 break;
         }
         startActivity(intent);

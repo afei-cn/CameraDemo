@@ -39,6 +39,9 @@
         <activity
             android:name=".textureview.TextureCamera2Activity"
             android:screenOrientation="portrait"/>
+        <activity
+            android:name=".glsurfaceview.GLSurfaceCamera2Activity"
+            android:screenOrientation="portrait"/>
     </application>
 
 </manifest>

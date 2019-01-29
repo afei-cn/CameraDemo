@@ -81,10 +81,10 @@ public class SurfaceCamera2Activity extends AppCompatActivity implements View.On
         }
     };
 
-    private class ImageSaveTask extends AsyncTask<Image, Void, Void> {
+    private class ImageSaveTask extends AsyncTask<Image, Void, Bitmap> {
 
         @Override
-        protected Void doInBackground(Image ... images) {
+        protected Bitmap doInBackground(Image ... images) {
             ByteBuffer buffer = images[0].getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
@@ -106,12 +106,12 @@ public class SurfaceCamera2Activity extends AppCompatActivity implements View.On
                 Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
             }
             images[0].close();
-            return null;
+            return ImageUtils.getLatestThumbBitmap();
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            mPictureIv.setImageBitmap(ImageUtils.getLatestThumbBitmap());
+        protected void onPostExecute(Bitmap bitmap) {
+            mPictureIv.setImageBitmap(bitmap);
         }
     }
 }
