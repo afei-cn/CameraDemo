@@ -53,6 +53,18 @@ public class GLSurfaceCamera2Activity extends AppCompatActivity implements View.
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        mCameraView.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mCameraView.onPause();
+    }
+
+    @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.toolbar_close_iv:

@@ -44,8 +44,8 @@ public class Camera2TextureView extends TextureView {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
             Log.v(TAG, "onSurfaceTextureAvailable. width: " + width + ", height: " + height);
-            mCameraProxy.setPreviewSurface(surface);
             mCameraProxy.openCamera(width, height);
+            mCameraProxy.setPreviewSurface(surface);
             // resize TextureView
             int previewWidth = mCameraProxy.getPreviewSize().getWidth();
             int previewHeight = mCameraProxy.getPreviewSize().getHeight();

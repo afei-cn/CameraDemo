@@ -51,7 +51,6 @@ public class Camera2Proxy {
     private HandlerThread mBackgroundThread;
     private ImageReader mImageReader;
     private Surface mPreviewSurface;
-    private SurfaceTexture mPreviewSurfaceTexture;
     private OrientationEventListener mOrientationEventListener;
 
     private int mDisplayRotate = 0;
@@ -104,8 +103,7 @@ public class Camera2Proxy {
             StreamConfigurationMap map = mCameraCharacteristics.get(CameraCharacteristics
                     .SCALER_STREAM_CONFIGURATION_MAP);
             // 拍照大小，选择能支持的一个最大的图片大小
-            Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new
-                    CompareSizesByArea());
+            Size largest = Collections.max(Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
             Log.d(TAG, "picture size: " + largest.getWidth() + "*" + largest.getHeight());
             mImageReader = ImageReader.newInstance(largest.getWidth(), largest.getHeight(), ImageFormat.JPEG, 2);
             // 预览大小，根据上面选择的拍照图片的长宽比，选择一个和控件长宽差不多的大小
@@ -149,16 +147,13 @@ public class Camera2Proxy {
     }
 
     public void setPreviewSurface(SurfaceTexture surfaceTexture) {
-        mPreviewSurfaceTexture = surfaceTexture;
+        surfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+        mPreviewSurface = new Surface(surfaceTexture);
     }
 
     private void initPreviewRequest() {
         try {
             mPreviewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            if (mPreviewSurfaceTexture != null && mPreviewSurface == null) { // use texture view
-                mPreviewSurfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-                mPreviewSurface = new Surface(mPreviewSurfaceTexture);
-            }
             mPreviewRequestBuilder.addTarget(mPreviewSurface); // 设置预览输出的 Surface
             mCameraDevice.createCaptureSession(Arrays.asList(mPreviewSurface, mImageReader.getSurface()),
                     new CameraCaptureSession.StateCallback() {
@@ -485,13 +480,15 @@ public class Camera2Proxy {
 
     private void stopBackgroundThread() {
         Log.v(TAG, "stopBackgroundThread");
-        mBackgroundThread.quitSafely();
-        try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mBackgroundHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (mBackgroundThread != null) {
+            mBackgroundThread.quitSafely();
+            try {
+                mBackgroundThread.join();
+                mBackgroundThread = null;
+                mBackgroundHandler = null;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 

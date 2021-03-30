@@ -8,6 +8,7 @@ import android.opengl.GLSurfaceView;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.SurfaceHolder;
 
 import com.afei.camerademo.camera.Camera2Proxy;
 
@@ -43,18 +44,17 @@ public class Camera2GLSurfaceView extends GLSurfaceView implements GLSurfaceView
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        Log.d(TAG, "onSurfaceCreated. width: " + getWidth() + ", height: " + getHeight());
         mTextureId = OpenGLUtils.getExternalOESTextureID();
         mSurfaceTexture = new SurfaceTexture(mTextureId);
         mSurfaceTexture.setOnFrameAvailableListener(this);
-        mCameraProxy.setPreviewSurface(mSurfaceTexture);
         mDrawer = new CameraDrawer();
-        Log.d(TAG, "onSurfaceCreated. width: " + getWidth() + ", height: " + getHeight());
         mCameraProxy.openCamera(getWidth(), getHeight());
+        mCameraProxy.setPreviewSurface(mSurfaceTexture);
     }
 
     @Override
     public void onSurfaceChanged(GL10 gl, int width, int height) {
-        Log.d(TAG, "onSurfaceChanged. thread: " + Thread.currentThread().getName());
         Log.d(TAG, "onSurfaceChanged. width: " + width + ", height: " + height);
         int previewWidth = mCameraProxy.getPreviewSize().getWidth();
         int previewHeight = mCameraProxy.getPreviewSize().getHeight();
@@ -64,6 +64,13 @@ public class Camera2GLSurfaceView extends GLSurfaceView implements GLSurfaceView
             setAspectRatio(previewHeight, previewWidth);
         }
         GLES20.glViewport(0, 0, width, height);
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        Log.d(TAG, "surfaceDestroyed");
+        super.surfaceDestroyed(holder);
+        mCameraProxy.releaseCamera();
     }
 
     @Override
