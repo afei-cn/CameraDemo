@@ -55,7 +55,7 @@ public class Camera2Proxy {
 
     private int mDisplayRotate = 0;
     private int mDeviceOrientation = 0; // 设备方向，由相机传感器获取
-    private int mZoom = 1; // 缩放
+    private int mZoom = 0; // 缩放
 
     /**
      * 打开摄像头的回调
@@ -331,24 +331,21 @@ public class Camera2Proxy {
         if (mCameraDevice == null || mCameraCharacteristics == null || mPreviewRequestBuilder == null) {
             return;
         }
-        int maxZoom = mCameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM).intValue()
-                * 10;
+        // maxZoom 表示 active_rect 宽度除以 crop_rect 宽度的最大值
+        float maxZoom = mCameraCharacteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
         Log.d(TAG, "handleZoom: maxZoom: " + maxZoom);
-        Rect rect = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-        if (isZoomIn && mZoom < maxZoom) {
+        int factor = 100; // 放大/缩小的一个因素，设置越大越平滑，相应放大的速度也越慢
+        if (isZoomIn && mZoom < factor) {
             mZoom++;
-        } else if (mZoom > 1) {
+        } else if (mZoom > 0) {
             mZoom--;
         }
         Log.d(TAG, "handleZoom: mZoom: " + mZoom);
-        int minW = rect.width() / maxZoom;
-        int minH = rect.height() / maxZoom;
-        int difW = rect.width() - minW;
-        int difH = rect.height() - minH;
-        int cropW = difW * mZoom / 100;
-        int cropH = difH * mZoom / 100;
-        cropW -= cropW & 3;
-        cropH -= cropH & 3;
+        Rect rect = mCameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+        int minW = (int) ((rect.width() - rect.width() / maxZoom) / (2 * factor));
+        int minH = (int) ((rect.height() - rect.height() / maxZoom) / (2 * factor));
+        int cropW = minW * mZoom;
+        int cropH = minH * mZoom;
         Log.d(TAG, "handleZoom: cropW: " + cropW + ", cropH: " + cropH);
         Rect zoomRect = new Rect(cropW, cropH, rect.width() - cropW, rect.height() - cropH);
         mPreviewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
