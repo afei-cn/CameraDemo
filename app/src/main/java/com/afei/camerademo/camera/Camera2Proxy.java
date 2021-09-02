@@ -347,7 +347,7 @@ public class Camera2Proxy {
         int cropW = minW * mZoom;
         int cropH = minH * mZoom;
         Log.d(TAG, "handleZoom: cropW: " + cropW + ", cropH: " + cropH);
-        Rect zoomRect = new Rect(cropW, cropH, rect.width() - cropW, rect.height() - cropH);
+        Rect zoomRect = new Rect(rect.left + cropW, rect.top + cropH, rect.right - cropW, rect.bottom - cropH);
         mPreviewRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
         mPreviewRequest = mPreviewRequestBuilder.build();
         startPreview(); // 需要重新 start preview 才能生效

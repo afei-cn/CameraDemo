@@ -98,6 +98,8 @@ public class CameraDrawer {
             GLES20.glVertexAttribPointer(mTextureHandle, VERTEX_SIZE, GLES20.GL_FLOAT, false, VERTEX_STRIDE, mBackTextureBuffer);
         }
         // 真正绘制的操作
+        // GL_TRIANGLE_FAN模式，绘制 (0, 1, 2) 和 (0, 2, 3) 两个三角形
+        // glDrawElements绘制索引，索引0为VERTEXES数组第一个点 (-1, 1)，以此类推
         GLES20.glDrawElements(GLES20.GL_TRIANGLE_FAN, VERTEX_ORDER.length, GLES20.GL_UNSIGNED_BYTE, mDrawListBuffer);
 
         GLES20.glDisableVertexAttribArray(mPositionHandle);
