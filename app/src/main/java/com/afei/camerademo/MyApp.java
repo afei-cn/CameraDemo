@@ -2,6 +2,7 @@ package com.afei.camerademo;
 
 import android.app.Application;
 
+@SuppressWarnings("SingletonDesignPattern")
 public class MyApp extends Application {
 
     private static MyApp app;
