@@ -45,12 +45,13 @@ public class Camera2GLSurfaceView extends GLSurfaceView implements GLSurfaceView
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
         Log.d(TAG, "onSurfaceCreated. width: " + getWidth() + ", height: " + getHeight());
+        mDrawer = new CameraDrawer();
         mTextureId = OpenGLUtils.getExternalOESTextureID();
         mSurfaceTexture = new SurfaceTexture(mTextureId);
         mSurfaceTexture.setOnFrameAvailableListener(this);
-        mDrawer = new CameraDrawer();
-        mCameraProxy.openCamera(getWidth(), getHeight());
+        mCameraProxy.setUpCameraOutputs(getWidth(), getHeight());
         mCameraProxy.setPreviewSurface(mSurfaceTexture);
+        mCameraProxy.openCamera();
     }
 
     @Override
@@ -128,7 +129,7 @@ public class Camera2GLSurfaceView extends GLSurfaceView implements GLSurfaceView
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 1) {
             // 点击聚焦
-            mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+            mCameraProxy.triggerFocusAtPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
             return true;
         }
         switch (event.getAction() & MotionEvent.ACTION_MASK) {

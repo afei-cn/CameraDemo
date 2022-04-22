@@ -44,7 +44,8 @@ public class Camera2TextureView extends TextureView {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
             Log.v(TAG, "onSurfaceTextureAvailable. width: " + width + ", height: " + height);
-            mCameraProxy.openCamera(width, height);
+            mCameraProxy.setUpCameraOutputs(width, height);
+            mCameraProxy.openCamera();
             mCameraProxy.setPreviewSurface(surface);
             // resize TextureView
             int previewWidth = mCameraProxy.getPreviewSize().getWidth();
@@ -105,7 +106,7 @@ public class Camera2TextureView extends TextureView {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 1) {
-            mCameraProxy.focusOnPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
+            mCameraProxy.triggerFocusAtPoint((int) event.getX(), (int) event.getY(), getWidth(), getHeight());
             return true;
         }
         switch (event.getAction() & MotionEvent.ACTION_MASK) {

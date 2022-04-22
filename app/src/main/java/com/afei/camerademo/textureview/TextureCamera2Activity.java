@@ -4,11 +4,9 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
-import android.media.ImageReader;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -60,12 +58,10 @@ public class TextureCamera2Activity extends AppCompatActivity implements View.On
                 finish();
                 break;
             case R.id.toolbar_switch_iv:
-                mCameraProxy.switchCamera(mCameraView.getWidth(), mCameraView.getHeight());
-                mCameraProxy.startPreview();
+                mCameraProxy.switchCamera();
                 break;
             case R.id.take_picture_iv:
-                mCameraProxy.setImageAvailableListener(mOnImageAvailableListener);
-                mCameraProxy.captureStillPicture(); // 拍照
+                mCameraProxy.captureStillPicture(reader -> new ImageSaveTask().execute(reader.acquireNextImage())); // 拍照
                 break;
             case R.id.picture_iv:
                 Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -74,14 +70,6 @@ public class TextureCamera2Activity extends AppCompatActivity implements View.On
         }
     }
 
-    private ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener
-            () {
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            new ImageSaveTask().execute(reader.acquireNextImage()); // 保存图片
-        }
-    };
-
     private class ImageSaveTask extends AsyncTask<Image, Void, Bitmap> {
 
         @Override
@@ -89,22 +77,14 @@ public class TextureCamera2Activity extends AppCompatActivity implements View.On
             ByteBuffer buffer = images[0].getPlanes()[0].getBuffer();
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
-
-            long time = System.currentTimeMillis();
             if (mCameraProxy.isFrontCamera()) {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                Log.d(TAG, "BitmapFactory.decodeByteArray time: " + (System.currentTimeMillis() - time));
-                time = System.currentTimeMillis();
                 // 前置摄像头需要左右镜像
                 Bitmap rotateBitmap = ImageUtils.rotateBitmap(bitmap, 0, true, true);
-                Log.d(TAG, "rotateBitmap time: " + (System.currentTimeMillis() - time));
-                time = System.currentTimeMillis();
                 ImageUtils.saveBitmap(rotateBitmap);
-                Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
                 rotateBitmap.recycle();
             } else {
                 ImageUtils.saveImage(bytes);
-                Log.d(TAG, "saveBitmap time: " + (System.currentTimeMillis() - time));
             }
             images[0].close();
             return ImageUtils.getLatestThumbBitmap();

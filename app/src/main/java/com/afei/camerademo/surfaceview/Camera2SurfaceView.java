@@ -2,8 +2,11 @@ package com.afei.camerademo.surfaceview;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.Size;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -15,6 +18,9 @@ public class Camera2SurfaceView extends SurfaceView {
     private static final String TAG = "Camera2SurfaceView";
 
     private Camera2Proxy mCameraProxy;
+    private Size mPreviewSize;
+
+    private GestureDetector mGestureDetector;
     private int mRatioWidth = 0;
     private int mRatioHeight = 0;
     private float mOldDistance;
@@ -39,25 +45,38 @@ public class Camera2SurfaceView extends SurfaceView {
     private void init(Context context) {
         getHolder().addCallback(mSurfaceHolderCallback);
         mCameraProxy = new Camera2Proxy((Activity) context);
+        mGestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) { // 单击聚焦
+                mCameraProxy.triggerFocusAtPoint(e.getX(), e.getY(), getWidth(), getHeight());
+                return true;
+            }
+        });
+        setKeepScreenOn(true); // 设置屏幕常亮
     }
 
     private final SurfaceHolder.Callback mSurfaceHolderCallback = new SurfaceHolder.Callback() {
         @Override
         public void surfaceCreated(SurfaceHolder holder) {
-            mCameraProxy.setPreviewSurface(holder);
-            Log.d(TAG, "surfaceCreated: width: " + getWidth() + ", height: " + getHeight());
-            mCameraProxy.openCamera(getWidth(), getHeight());
+            Rect rect = holder.getSurfaceFrame();
+            mCameraProxy.setUpCameraOutputs(rect.width(), rect.height());
+            mPreviewSize = mCameraProxy.getPreviewSize();
+            holder.setFixedSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
         }
 
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             Log.d(TAG, "surfaceChanged: width: " + width + ", height: " + height);
-            int previewWidth = mCameraProxy.getPreviewSize().getWidth();
-            int previewHeight = mCameraProxy.getPreviewSize().getHeight();
+            float ratio;
             if (width > height) {
-                setAspectRatio(previewWidth, previewHeight);
+                ratio = height * 1.0f / width;
             } else {
-                setAspectRatio(previewHeight, previewWidth);
+                ratio = width * 1.0f / height;
+            }
+            setAspectRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth()); //固定竖屏显示
+            if (ratio == mPreviewSize.getHeight() * 1f / mPreviewSize.getWidth()) {
+                mCameraProxy.setPreviewSurface(holder); // 等view的大小固定后再设置surface
+                mCameraProxy.openCamera();
             }
         }
 
@@ -99,7 +118,7 @@ public class Camera2SurfaceView extends SurfaceView {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getPointerCount() == 1) {
-            mCameraProxy.focusOnPoint(event.getX(), event.getY(), getWidth(), getHeight());
+            mCameraProxy.triggerFocusAtPoint(event.getX(), event.getY(), getWidth(), getHeight());
             return true;
         }
         switch (event.getAction() & MotionEvent.ACTION_MASK) {
